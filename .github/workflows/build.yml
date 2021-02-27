@@ -1,0 +1,25 @@
+name: 'build'
+
+on:
+    push:
+        branches:
+            - master
+jobs:
+    build:
+        name: 'Build'
+        runs-on: ubuntu-latest
+        steps:
+          - name: "Build:checkout"
+            uses: actions/checkout@v2
+          - name: "Define variables"
+            id: envs
+            run: |
+                echo "::set-output name=GITHUB_SHA_SHORT::$(echo ${GITHUB_SHA} | cut -c1-8)"
+          - name: "Set environment variables"
+            uses: allenevans/set-env@v2.0.0
+            with:
+                GITHUB_SHA_SHORT: ${{ steps.envs.outputs.GITHUB_SHA_SHORT }}
+          - name: "test"
+            run: |
+                set
+
