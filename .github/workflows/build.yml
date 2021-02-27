@@ -15,10 +15,10 @@ jobs:
             id: envs
             run: |
                 echo "::set-output name=GITHUB_SHA_SHORT::$(echo ${GITHUB_SHA} | cut -c1-8)"
-          - name: "Set environment variables"
-            uses: allenevans/set-env@v2.0.0
-            with:
-                GITHUB_SHA_SHORT: ${{ steps.envs.outputs.GITHUB_SHA_SHORT }}
+          #- name: "Set environment variables"
+          #  uses: allenevans/set-env@v2.0.0
+          #  with:
+          #      GITHUB_SHA_SHORT: ${{ steps.envs.outputs.GITHUB_SHA_SHORT }}
           - name: "test"
             run: |
                 set
