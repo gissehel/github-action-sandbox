@@ -1,3 +1,7 @@
+# This workflow requires definition of:
+# - vars.DOCKER_HUB_USER
+# - secrets.DOCKER_HUB_TOKEN
+
 name: "build"
 
 on:
@@ -13,12 +17,15 @@ on:
       branches:
         - "*"
 
+env:
+  USE_CHECKOUT: "actions/checkout@v3"
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v3
+        uses: "${{ env.USE_CHECKOUT }}"
 
       - name: "Set env vars"
         run: |
@@ -49,16 +56,13 @@ jobs:
           export_ga DOCKER_HUB_IMAGE_NAME="${DOCKER_HUB_REGISTRY}/${DOCKER_HUB_USER}/${IMAGE_NAME}"
           export_ga MAIN_DOCKER_TAG="${GH_IMAGE_NAME}:${GITHUB_SHA_SHORT}"
 
-          export_ga IS_NOT_PR="${{ github.event_name != 'pull_request' }}"
           export_ga IS_PR="${{ github.event_name == 'pull_request' }}"
-          export_ga IS_A_TAG="${{ contains(github.ref, 'refs/tags/') }}"
           export_ga IS_RELEASE="${{ startsWith(github.ref, 'refs/tags/v') }}"
-          export_ga IS_NOT_RELEASE="${{ !startsWith(github.ref, 'refs/tags/v') }}"
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
-        if: env.IS_NOT_PR == 'true'
+        if: env.IS_PR != 'true'
         uses: sigstore/cosign-installer@f3c664df7af409cb4873aa5068053ba9d61a57b6 #v2.6.0
         with:
           cosign-release: "v1.13.1"
@@ -68,7 +72,7 @@ jobs:
         uses: docker/setup-buildx-action@v2.5.0
 
       - name: "Login to github container registry"
-        if: env.IS_NOT_PR == 'true'
+        if: env.IS_PR != 'true'
         uses: docker/login-action@v2.1.0
         with:
           registry: "${{ env.GH_REGISTRY }}"
@@ -85,7 +89,7 @@ jobs:
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
-      - name: Extract Docker metadata (if not a tag)
+      - name: Extract Docker metadata (if not a release)
         id: meta_not_release
         uses: docker/metadata-action@v4.4.0
         if: env.IS_RELEASE != 'true'
@@ -101,7 +105,7 @@ jobs:
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
-      - name: Extract Docker metadata (if a tag)
+      - name: Extract Docker metadata (if a release)
         id: meta_release
         uses: docker/metadata-action@v4.4.0
         if: env.IS_RELEASE == 'true'
@@ -114,7 +118,7 @@ jobs:
         uses: docker/build-push-action@v4.0.0
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ env.IS_PR != 'true' }}
           tags: |
             ${{ env.MAIN_DOCKER_TAG }}
             ${{ steps.meta_not_release.outputs.tags }}
