@@ -1,11 +1,17 @@
 name: "build"
 
 on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 13 * * *'  
   push:
     branches:
-      - master
+      - "*"
     tags:
-      - "v*"
+      - "v*.*.*"
+    pull_request:
+      branches:
+        - "*"
 
 jobs:
   build:
@@ -41,6 +47,10 @@ jobs:
           export_ga VERSION="${REFNAME}"
           export_ga GH_IMAGE_NAME="${GH_REGISTRY}/${GH_USER}/${IMAGE_NAME}"
           export_ga DOCKER_HUB_IMAGE_NAME="${DOCKER_HUB_REGISTRY}/${DOCKER_HUB_USER}/${IMAGE_NAME}"
+          export_ga IS_NOT_PR="${{ github.event_name != 'pull_request' }}"
+          export_ga IS_PR="${{ github.event_name == 'pull_request' }}"
+          export_ga IS_A_TAG="${{ contains(github.ref, 'refs/tags/') }}"
+          export_ga IS_RELEASE="${{ startsWith(github.ref, 'refs/tags/v') }}"
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
