@@ -47,6 +47,8 @@ jobs:
           export_ga VERSION="${REFNAME}"
           export_ga GH_IMAGE_NAME="${GH_REGISTRY}/${GH_USER}/${IMAGE_NAME}"
           export_ga DOCKER_HUB_IMAGE_NAME="${DOCKER_HUB_REGISTRY}/${DOCKER_HUB_USER}/${IMAGE_NAME}"
+          export_ga MAIN_DOCKER_TAG="${GH_IMAGE_NAME}:${GITHUB_SHA_SHORT}"
+
           export_ga IS_NOT_PR="${{ github.event_name != 'pull_request' }}"
           export_ga IS_PR="${{ github.event_name == 'pull_request' }}"
           export_ga IS_A_TAG="${{ contains(github.ref, 'refs/tags/') }}"
@@ -56,7 +58,7 @@ jobs:
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
-        if: "${{ env.IS_NOT_PR }}"
+        if: ${{ env.IS_NOT_PR }}
         uses: sigstore/cosign-installer@f3c664df7af409cb4873aa5068053ba9d61a57b6 #v2.6.0
         with:
           cosign-release: "v1.13.1"
@@ -66,7 +68,7 @@ jobs:
         uses: docker/setup-buildx-action@v2.5.0
 
       - name: "Login to github container registry"
-        if: "${{ env.IS_NOT_PR }}"
+        if: ${{ env.IS_NOT_PR }}
         uses: docker/login-action@v2.1.0
         with:
           registry: "${{ env.GH_REGISTRY }}"
@@ -74,7 +76,7 @@ jobs:
           password: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: "Login to docker hub container registry"
-        if: "${{ env.IS_RELEASE }}"
+        if: ${{ env.IS_RELEASE }}
         uses: docker/login-action@v2.1.0
         with:
           registry: "${{ env.DOCKER_HUB_REGISTRY }}"
@@ -86,7 +88,7 @@ jobs:
       - name: Extract Docker metadata (if not a tag)
         id: meta_not_release
         uses: docker/metadata-action@v4.4.0
-        if: "${{ env.IS_NOT_RELEASE }}"
+        if: ${{ env.IS_NOT_RELEASE }}
         with:
           tags: |
             type=sha,enable=true,priority=100,prefix=,suffix=,format=short
@@ -99,10 +101,10 @@ jobs:
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
-      - name: Extract Docker metadata (if not a tag)
+      - name: Extract Docker metadata (if a tag)
         id: meta_release
         uses: docker/metadata-action@v4.4.0
-        if: "${{ env.IS_RELEASE }}"
+        if: ${{ env.IS_RELEASE }}
         with:
           images: |
             ${{ env.GH_IMAGE_NAME }}
@@ -114,6 +116,7 @@ jobs:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
+            ${{ env.MAIN_DOCKER_TAG }}
             ${{ steps.meta_not_release.outputs.tags }}
             ${{ steps.meta_release.outputs.tags }}
           labels: |
@@ -122,27 +125,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: "Set env vars (for MAIN_DOCKER_TAG)"
-        run: |
-          export_ga() {
-            for _name in "${@}"
-            do
-              local _key="${_name%%=*}"
-              local _value="${_name#*=}"
-              [ "${_key}" == "${_name}" ] && _value="${!_name}"
-              export $_key="${_value}"
-              echo "${_key}=${_value}" >> "${GITHUB_ENV}"
-            done
-          }
-
-          export_ga MAIN_DOCKER_TAG="${GH_IMAGE_NAME}:${GITHUB_SHA_SHORT}"
-
       - name: "Create a dummy file"
         run: |
           echo "dummy" > ./poide
 
       - name: "Create release"
-        if: "${{ env.IS_RELEASE }}"
+        if: ${{ env.IS_RELEASE }}
         uses: "softprops/action-gh-release@v1"
         with:
           files: |
